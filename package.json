@@ -1,0 +1,30 @@
+{
+  "name": "glyphscope",
+  "version": "1.0.0",
+  "description": "A library that separates various characters within a text",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0",
+    "lint": "eslint src",
+    "build": "babel src --out-dir dist --copy-files"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gaon12/glyphscope.git"
+  },
+  "keywords": [
+    "unicode",
+    "script",
+    "hangul",
+    "latin",
+    "classification",
+    "glyph"
+  ],
+  "author": "Jeong Gaon",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/cli": "^7.28.0",
+    "@babel/core": "^7.28.0"
+  }
+}
