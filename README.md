@@ -1,64 +1,129 @@
-# GlyphScope
+# GlyphScope / 글리프스코프
 
-GlyphScope는 단일 문자 혹은 문자열 전체를 분석하여 Unicode 스크립트(예: Latin, Hangul, Han, Emoji 등)로 분류해 주는 간단한 Node.js 라이브러리입니다.
+[![npm](https://img.shields.io/npm/v/glyphscope)](https://www.npmjs.com/package/glyphscope) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D14.0.0-green)](https://nodejs.org/)
 
-## 설치
+**GlyphScope** is a lightweight **Unicode script categoriser** for Node.js and modern browsers.
+**GlyphScope**는 Node.js와 최신 브라우저에서 동작하는 가벼운 **유니코드 스크립트 분류기**입니다.
+
+👉 **Try it online / 온라인 데모**: [https://glyphscope.vercel.app](https://glyphscope.vercel.app)
+
+---
+
+## Installation / 설치
 
 ```bash
 npm install glyphscope
-````
+```
 
-## 사용법
+GlyphScope targets **Node ≥ 14** and contains **no native addons**.
+GlyphScope는 **Node 14 이상**을 지원하며 **네이티브 애드온이 없습니다**.
 
-```javascript
+---
+
+## Quick Start / 빠른 시작
+
+```js
+// ES Modules
 import { getCharacterType, analyzeText } from 'glyphscope';
 
-// 단일 문자 분류
-console.log(getCharacterType('가'));
-// → { main: 'Hangul', sub: 'Syllable' }
+// CommonJS
+// const { getCharacterType, analyzeText } = require('glyphscope');
 
-console.log(getCharacterType('A'));
-// → { main: 'Latin', sub: 'Uppercase' }
+// ─────────────────────────────────────────────
+// Classify a single character / 단일 문자 분류
+console.log(getCharacterType('가')); // { main: 'Hangul', sub: 'Syllable' }
+console.log(getCharacterType('A')); // { main: 'Latin',  sub: 'Uppercase' }
+console.log(getCharacterType('😊')); // { main: 'Emoji' }
 
-console.log(getCharacterType('😊'));
-// → { main: 'Emoji' }
-
-// 문자열 분석 (메인 카테고리 기준)
-const result = analyzeText('Hello 가😊');
-console.log(result.total);
-// → 7
-console.log(result.breakdown);
-// → {
-//    Latin: { count: 5, ratio: 71.43, chars: ['H','e','l','o'] },
-//    Whitespace: { count: 1, ratio: 14.29, chars: [' '] },
-//    Hangul: { count: 1, ratio: 14.29, chars: ['가'] },
-//    Emoji: { count: 1, ratio: 14.29, chars: ['😊'] }
-// }
+// Analyse a string / 문자열 분석
+const res = analyzeText('Hello 가😊');
+console.log(res.total);      // 8
+console.dir(res.breakdown);
+/* → {
+     Latin:      { count: 5, ratio: 62.5, chars: ['H','e','l','o'] },
+     Whitespace: { count: 1, ratio: 12.5, chars: [' '] },
+     Hangul:     { count: 1, ratio: 12.5, chars: ['가'] },
+     Emoji:      { count: 1, ratio: 12.5, chars: ['😊'] }
+   }
+*/
 ```
+
+> **TypeScript? / 타입스크립트 지원**
+> `.d.ts` typings are bundled. No extra install needed.
+> `.d.ts` 타입 정의가 포함되어 있어 별도 설치가 필요 없습니다.
+
+---
+
+## API
 
 ### `getCharacterType(char)`
 
-* **매개변수**: `char` (문자열 길이 ≥ 1)
-* **반환값**: `{ main: string, sub?: string }`
+| Parameter / 매개변수 | Type               | Description / 설명                             |
+| ---------------- | ------------------ | -------------------------------------------- |
+| `char`           | `string` (≥1 char) | Character to classify / 분류할 문자 (첫 코드포인트만 사용) |
 
-  * `main`: 스크립트 이름 (예: Latin, Hangul, Emoji 등)
-  * `sub`: 세부 분류 (예: Uppercase, Syllable 등)
+**Returns / 반환값** `{ main: string, sub?: string }`
 
-### `analyzeText(text, options)`
+* `main` – Primary script (e.g. `Latin`). / 주요 스크립트
+* `sub`  – Optional sub‑category (e.g. `Uppercase`). / 세부 분류 (선택)
 
-* **매개변수**:
+---
 
-  * `text` (분석할 문자열)
-  * `options.granularity` (`'main'` | `'sub'`, 기본 `'main'`)
-* **반환값**: `{ total: number, breakdown: Record<string, { count: number, ratio: number, chars: string[] }> }`
+### `analyzeText(text, options?)`
 
-  * `total`: 전체 문자 수
-  * `breakdown`: 카테고리별 객체
+| Parameter / 매개변수      | Type              | Default / 기본값 | Description / 설명                 |
+| --------------------- | ----------------- | ------------- | -------------------------------- |
+| `text`                | `string`          | —             | String to analyse / 분석할 문자열      |
+| `options.granularity` | `'main' \| 'sub'` | `'main'`      | Use sub‑categories / 세부 분류 사용 여부 |
 
-    * `count`: 해당 카테고리 문자 수
-    * `ratio`: 비율(백분율, 소수점 둘째 자리)
-    * `chars`: 해당 카테고리에 속하는 고유 문자 배열
+**Returns / 반환값** `{ total: number, breakdown: Record<string, { count: number, ratio: number, chars: string[] }> }`
 
-## 라이선스
+* `total`      – Total code points / 전체 코드포인트 수
+* `breakdown`  – Per‑category stats / 카테고리별 통계:
 
-[MIT](LICENSE)
+  * `count` – Number of code points / 개수
+  * `ratio` – Percentage (two decimals) / 비율(소수점 둘째 자리)
+  * `chars` – Unique characters / 고유 문자 배열
+
+---
+
+## Custom Ranges / 커스텀 범위
+
+Need extra scripts? Extend the internal table.
+추가 스크립트가 필요하다면 내부 테이블을 확장할 수 있습니다.
+
+```js
+import { CATEGORY_RANGES } from 'glyphscope/internal';
+
+// Add Gothic block / 고트 문자 블록 추가
+CATEGORY_RANGES.push([0x10330, 0x1034F, 'Gothic']);
+CATEGORY_RANGES.sort((a, b) => a[0] - b[0]); // keep ordered / 정렬 유지
+```
+
+---
+
+## Performance Notes / 성능 메모
+
+* **O(log n)** lookup via binary search. / 이진 탐색으로 **O(log n)** 검색
+* Results cached in a `Map` (hot path ≈ O(1)). / 핫 패스는 `Map` 캐싱으로 **O(1)**
+* No `Intl` dependency; works in Cloudflare Workers, etc. / `Intl` 의존성 없음 → 경량 런타임에서도 동작
+
+---
+
+## Contributing / 기여
+
+Pull requests are welcome!
+PR을 환영합니다.
+
+1. Fork & clone / 포크 후 클론
+2. `npm i`
+3. Make changes / 수정
+4. `npm test && npm run lint`
+5. Open a PR / PR 제출
+
+---
+
+## License / 라이선스
+
+GlyphScope is released under the [MIT](LICENSE) license.
+GlyphScope는 [MIT](LICENSE) 라이선스로 배포됩니다.

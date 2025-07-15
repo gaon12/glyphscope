@@ -4,145 +4,165 @@
 // | |_| | |___| | |  __/|  _  |  ___) | |__| |_| |  __/| |___ 
 //  \____|_____|_| |_|   |_| |_| |____/ \____\___/|_|   |_____|
 
+'use strict';
 
 /* ------------------------------------------------------------------------------------------------
- * CATEGORY DEFINITIONS
- * ------------------------------------------------------------------------------------------------
- * Each rule contains:
- *   - test(cp) → boolean        // range predicate
- *   - main : string             // top‑level label
- *   - sub  : string | undefined // optional refined label
- * The array is ordered so that frequently‑encountered ranges are early for average O(1) speed.
- */
-const CATEGORY_RULES = [
-    // Whitespace – most common
-    { test: cp => cp === 0x0020 || (cp >= 0x0009 && cp <= 0x000D), main: 'Whitespace' },
+ * 1. Define Unicode ranges
+ *    [start code point, end code point, main label, (optional) sub label]
+ *    Feel free to add/remove ranges as needed.
+ * ------------------------------------------------------------------------------------------------ */
+const CATEGORY_RANGES = [
+    // Whitespace
+    [0x0009, 0x000D, 'Whitespace'],
+    [0x0020, 0x0020, 'Whitespace'],
 
-    // Hangul (Korean)
-    { test: cp => cp >= 0xAC00 && cp <= 0xD7A3, main: 'Hangul', sub: 'Syllable' },
-    { test: cp => cp >= 0x1100 && cp <= 0x11FF, main: 'Hangul', sub: 'Jamo' },
-    { test: cp => cp >= 0x3130 && cp <= 0x318F, main: 'Hangul', sub: 'Compatibility Jamo' },
+    // ASCII punctuation & symbols
+    [0x0021, 0x002F, 'Punctuation'],
+    [0x003A, 0x0040, 'Punctuation'],
+    [0x005B, 0x0060, 'Punctuation'],
+    [0x007B, 0x007E, 'Punctuation'],
+    [0x3000, 0x303F, 'Punctuation'],
 
-    // Latin (ASCII)
-    { test: cp => cp >= 0x0041 && cp <= 0x005A, main: 'Latin', sub: 'Uppercase' },
-    { test: cp => cp >= 0x0061 && cp <= 0x007A, main: 'Latin', sub: 'Lowercase' },
+    // ASCII digits & Latin
+    [0x0030, 0x0039, 'Digit', 'ASCII'],
+    [0x0041, 0x005A, 'Latin', 'Uppercase'],
+    [0x0061, 0x007A, 'Latin', 'Lowercase'],
 
-    // Digits (ASCII)
-    { test: cp => cp >= 0x0030 && cp <= 0x0039, main: 'Digit', sub: 'ASCII' },
+    // Hangul
+    [0xAC00, 0xD7A3, 'Hangul', 'Syllable'],
+    [0x1100, 0x11FF, 'Hangul', 'Jamo'],
+    [0xA960, 0xA97F, 'Hangul', 'Jamo Ext‑A'],
+    [0xD7B0, 0xD7FF, 'Hangul', 'Jamo Ext‑B'],
+    [0x3130, 0x318F, 'Hangul', 'Compatibility Jamo'],
 
     // CJK Unified Ideographs (Han)
-    { test: cp => (cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0x3400 && cp <= 0x4DBF), main: 'Han Ideograph' },
+    [0x4E00, 0x9FFF, 'Han Ideograph'],
+    [0x3400, 0x4DBF, 'Han Ideograph'],         // Ext‑A
+    [0x20000, 0x2A6DF, 'Han Ideograph'],       // Ext‑B
+    [0x2A700, 0x2B73F, 'Han Ideograph'],       // Ext‑C
+    [0x2B740, 0x2B81F, 'Han Ideograph'],       // Ext‑D
+    [0x2B820, 0x2CEAF, 'Han Ideograph'],       // Ext‑E
+    [0x2CEB0, 0x2EBEF, 'Han Ideograph'],       // Ext‑F
 
-    // Kana & Japanese blocks
-    { test: cp => cp >= 0x3040 && cp <= 0x309F, main: 'Hiragana' },
-    { test: cp => (cp >= 0x30A0 && cp <= 0x30FF) || (cp >= 0x31F0 && cp <= 0x31FF), main: 'Katakana' },
+    // Japanese
+    [0x3040, 0x309F, 'Hiragana'],
+    [0x30A0, 0x30FF, 'Katakana'],
+    [0x31F0, 0x31FF, 'Katakana'],
 
     // Bopomofo
-    { test: cp => cp >= 0x3100 && cp <= 0x312F, main: 'Bopomofo' },
+    [0x3100, 0x312F, 'Bopomofo'],
 
     // Greek & Coptic
-    { test: cp => cp >= 0x0370 && cp <= 0x03FF, main: 'Greek' },
+    [0x0370, 0x03FF, 'Greek'],
 
     // Cyrillic
-    { test: cp => cp >= 0x0400 && cp <= 0x04FF, main: 'Cyrillic' },
+    [0x0400, 0x04FF, 'Cyrillic'],
 
     // Hebrew
-    { test: cp => cp >= 0x0590 && cp <= 0x05FF, main: 'Hebrew' },
+    [0x0590, 0x05FF, 'Hebrew'],
 
     // Arabic
-    { test: cp => cp >= 0x0600 && cp <= 0x06FF, main: 'Arabic' },
+    [0x0600, 0x06FF, 'Arabic'],
 
     // Devanagari
-    { test: cp => cp >= 0x0900 && cp <= 0x097F, main: 'Devanagari' },
+    [0x0900, 0x097F, 'Devanagari'],
 
     // Thai
-    { test: cp => cp >= 0x0E00 && cp <= 0x0E7F, main: 'Thai' },
+    [0x0E00, 0x0E7F, 'Thai'],
 
-    // Emoji – popular blocks
-    {
-        test: cp =>
-            (cp >= 0x1F600 && cp <= 0x1F64F) || // Emoticons
-            (cp >= 0x1F300 && cp <= 0x1F5FF) || // Symbols & Pictographs
-            (cp >= 0x1F680 && cp <= 0x1F6FF) || // Transport & Map
-            (cp >= 0x2600 && cp <= 0x26FF)   || // Misc symbols
-            (cp >= 0x2700 && cp <= 0x27BF)   || // Dingbats
-            (cp >= 0xFE00 && cp <= 0xFE0F)   || // Variation selectors
-            (cp >= 0x1F900 && cp <= 0x1F9FF),   // Supplemental Pictographs
-        main: 'Emoji',
-    },
-
-    // Punctuation & Symbols (ASCII + CJK)
-    {
-        test: cp =>
-            (cp >= 0x0021 && cp <= 0x002F) ||
-            (cp >= 0x003A && cp <= 0x0040) ||
-            (cp >= 0x005B && cp <= 0x0060) ||
-            (cp >= 0x007B && cp <= 0x007E) ||
-            (cp >= 0x3000 && cp <= 0x303F),
-        main: 'Punctuation',
-    },
+    // Emoji & popular symbols
+    [0x1F600, 0x1F64F, 'Emoji'],   // Emoticons
+    [0x1F300, 0x1F5FF, 'Emoji'],   // Symbols & Pictographs
+    [0x1F680, 0x1F6FF, 'Emoji'],   // Transport & Map
+    [0x1F1E6, 0x1F1FF, 'Emoji'],   // Regional Indicator Symbols
+    [0x1F900, 0x1F9FF, 'Emoji'],   // Supplemental Pictographs
+    [0x1FA70, 0x1FAFF, 'Emoji'],   // Extended Pictographs
+    [0x2600, 0x26FF, 'Emoji'],     // Misc symbols
+    [0x2700, 0x27BF, 'Emoji'],     // Dingbats
+    [0xFE00, 0xFE0F, 'Emoji'],     // Variation Selectors
 ];
 
-/* ------------------------------------------------------------------------------------------------
- *  CACHING LAYER – avoid duplicate rule scans for repeated code points
- * ------------------------------------------------------------------------------------------------ */
-const _memo = new Map(); // cp → { main, sub }
-function _classify(cp) {
-    let cached = _memo.get(cp);
-    if (cached) return cached;
-    for (const r of CATEGORY_RULES) if (r.test(cp)) {
-        cached = { main: r.main, sub: r.sub };
-        _memo.set(cp, cached);
-        return cached;
-    }
-    cached = { main: 'Other' };
-    _memo.set(cp, cached);
-    return cached;
-}
+/* Ensure sorted (ascending by start code point) */
+CATEGORY_RANGES.sort((a, b) => a[0] - b[0]);
 
 /* ------------------------------------------------------------------------------------------------
- *  PUBLIC API
+ * 2. Internal utilities – range lookup via binary search
  * ------------------------------------------------------------------------------------------------ */
 /**
- * Classify a single Unicode character.
- * @param {string} char – single character
+ * Find the range containing a code point using binary search.
+ * @param {number} cp - Unicode code point
+ * @returns {{ main: string, sub?: string }} - Matched labels or 'Other'
+ */
+function _binarySearch(cp) {
+    let lo = 0;
+    let hi = CATEGORY_RANGES.length - 1;
+
+    while (lo <= hi) {
+        const mid = (lo + hi) >>> 1;
+        const [start, end, main, sub] = CATEGORY_RANGES[mid];
+        if (cp < start) hi = mid - 1;
+        else if (cp > end) lo = mid + 1;
+        else return { main, sub };
+    }
+    return { main: 'Other' };
+}
+
+/* Memoization cache – reuse results for frequently seen code points */
+const _memo = new Map();
+
+/* ------------------------------------------------------------------------------------------------
+ * 3. Public API
+ * ------------------------------------------------------------------------------------------------ */
+/**
+ * Classify a single character.
+ * @param {string} char – A non‑empty string (only the first code point is used)
  * @returns {{ main: string, sub?: string }}
  */
 function getCharacterType(char) {
-    if (typeof char !== 'string' || char.length === 0)
+    if (typeof char !== 'string' || char.length === 0) {
         throw new TypeError('getCharacterType expects a non‑empty string.');
+    }
     const cp = char.codePointAt(0);
-    return _classify(cp);
+    let hit = _memo.get(cp);
+    if (!hit) {
+        hit = _binarySearch(cp);
+        _memo.set(cp, hit);
+    }
+    return hit;
 }
 
 /**
- * Analyze text and return category statistics.
+ * Analyze a string and return per‑category statistics.
  * @param {string} text
  * @param {{ granularity?: 'main' | 'sub' }} [options]
  * @returns {{ total: number, breakdown: Record<string,{count:number,ratio:number,chars:string[]}> }}
  */
 function analyzeText(text, { granularity = 'main' } = {}) {
-    if (typeof text !== 'string') throw new TypeError('Input must be a string.');
-    if (granularity !== 'main' && granularity !== 'sub')
+    if (typeof text !== 'string') {
+        throw new TypeError('Input must be a string.');
+    }
+    if (granularity !== 'main' && granularity !== 'sub') {
         throw new RangeError("granularity must be 'main' or 'sub'");
+    }
 
+    /** @type {Record<string, {count:number, chars:Set<string>}>} */
     const breakdown = Object.create(null);
     let total = 0;
 
-    for (let i = 0; i < text.length; ) {
-        const cp = text.codePointAt(i);
-        const { main, sub } = _classify(cp);
+    // ES2015 code‑point‑safe iteration
+    for (const char of text) {
+        const { main, sub } = getCharacterType(char);
         const label = granularity === 'sub' && sub ? `${main}:${sub}` : main;
 
         let bucket = breakdown[label];
         if (!bucket) bucket = breakdown[label] = { count: 0, chars: new Set() };
-        bucket.count++;
-        bucket.chars.add(String.fromCodePoint(cp));
 
+        bucket.count++;
+        bucket.chars.add(char);
         total++;
-        i += cp > 0xFFFF ? 2 : 1; // skip surrogate pair
     }
 
+    // Post‑processing: compute ratios and sort chars
     for (const k in breakdown) {
         const b = breakdown[k];
         b.ratio = +(b.count * 100 / total).toFixed(2);
@@ -152,7 +172,7 @@ function analyzeText(text, { granularity = 'main' } = {}) {
     return { total, breakdown };
 }
 
-// ---------------------------------------------------------------------------
-//  Module exports
-// ---------------------------------------------------------------------------
+/* ------------------------------------------------------------------------------------------------
+ * 4. Module export
+ * ------------------------------------------------------------------------------------------------ */
 export { getCharacterType, analyzeText };
