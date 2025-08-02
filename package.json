@@ -1,8 +1,9 @@
 {
   "name": "glyphscope",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A library that separates various characters within a text",
   "main": "src/index.js",
+  "types": "src/index.d.ts",
   "type": "module",
   "scripts": {
     "test": "echo \"No tests specified\" && exit 0",
@@ -23,6 +24,11 @@
   ],
   "author": "Jeong Gaon",
   "license": "MIT",
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
   "devDependencies": {
     "@babel/cli": "^7.28.0",
     "@babel/core": "^7.28.0"
