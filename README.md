@@ -2,8 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/glyphscope)](https://www.npmjs.com/package/glyphscope) [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![Node](https://img.shields.io/badge/node-%3E%3D14.0.0-green)](https://nodejs.org/)
 
-**GlyphScope** is a lightweight **Unicode script categoriser** for Node.js and modern browsers.
-**GlyphScope**는 Node.js와 최신 브라우저에서 동작하는 가벼운 **유니코드 스크립트 분류기**입니다.
+**GlyphScope** is a lightweight **Unicode character classifier** for Node.js and modern browsers.
+**GlyphScope**는 Node.js와 최신 브라우저에서 동작하는 가벼운 **유니코드 문자 분류기**입니다.
 
 👉 **Try it online / 온라인 데모**: [https://glyphscope.vercel.app](https://glyphscope.vercel.app)
 
@@ -87,25 +87,20 @@ console.dir(res.breakdown);
 
 ---
 
-## Custom Ranges / 커스텀 범위
+## Customization / 커스텀
 
-Need extra scripts? Extend the internal table.
-추가 스크립트가 필요하다면 내부 테이블을 확장할 수 있습니다.
-
-```js
-import { CATEGORY_RANGES } from 'glyphscope/internal';
-
-// Add Gothic block / 고트 문자 블록 추가
-CATEGORY_RANGES.push([0x10330, 0x1034F, 'Gothic']);
-CATEGORY_RANGES.sort((a, b) => a[0] - b[0]); // keep ordered / 정렬 유지
-```
+Custom ranges are not exposed in the current public API.
+Need custom ranges? Please open an issue.
+현재 버전은 커스텀 범위를 위한 내부 테이블을 공개하지 않습니다.
+필요하면 이슈로 요청해주세요.
 
 ---
 
 ## Performance Notes / 성능 메모
 
-* **O(log n)** lookup via binary search. / 이진 탐색으로 **O(log n)** 검색
+* Fast paths for whitespace/ASCII/emoji + Unicode property checks (mostly **O(1)**). / 화이트스페이스/ASCII/이모지 고속 경로 + 유니코드 속성 검사(대체로 **O(1)**)
 * Results cached in a `Map` (hot path ≈ O(1)). / 핫 패스는 `Map` 캐싱으로 **O(1)**
+* Uses Unicode property escapes when available; falls back to limited range checks otherwise. / 가능하면 유니코드 속성 이스케이프를 사용하고, 미지원 시 제한적 범위 검사로 동작
 * No `Intl` dependency; works in Cloudflare Workers, etc. / `Intl` 의존성 없음 → 경량 런타임에서도 동작
 
 ---
