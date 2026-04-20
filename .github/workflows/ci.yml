@@ -25,6 +25,10 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
+      - name: Upgrade npm for Node 14 compatibility
+        if: matrix.node-version == 14
+        run: npm install --global npm@9
+
       - name: Install dependencies
         run: npm ci
 
